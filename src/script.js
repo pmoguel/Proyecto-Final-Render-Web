@@ -1,10 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-console.log(GLTFLoader);
-
 
 /**
  * Base
@@ -18,20 +15,9 @@ const canvas = document.querySelector('canvas.webgl')
 // Scene
 const scene = new THREE.Scene()
 
-/**
- * Floor
- */
-const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(10, 10),
-    new THREE.MeshStandardMaterial({
-        color: '#444444',
-        metalness: 0,
-        roughness: 0.5
-    })
-)
-floor.receiveShadow = true
-floor.rotation.x = - Math.PI * 0.5
-scene.add(floor)
+// COLOR DE FONDO: Versión más oscura de #130832
+scene.background = new THREE.Color('#09041a')
+
 
 /**
  * Lights
@@ -49,6 +35,44 @@ directionalLight.shadow.camera.right = 7
 directionalLight.shadow.camera.bottom = - 7
 directionalLight.position.set(5, 5, 5)
 scene.add(directionalLight)
+
+/**
+ * Stars (Con colores aleatorios)
+ */
+const starGeometry = new THREE.BufferGeometry()
+const starCount = 5000
+
+// Array para posiciones
+const positions = new Float32Array(starCount * 3)
+// Array para colores
+const colors = new Float32Array(starCount * 3)
+
+for (let i = 0; i < starCount; i++) {
+    const i3 = i * 3
+
+    // Posiciones
+    positions[i3 + 0] = (Math.random() - 0.5) * 200 // x
+    positions[i3 + 1] = (Math.random() - 0.5) * 200 // y
+    positions[i3 + 2] = (Math.random() - 0.5) * 200 // z
+
+    // Colores
+    colors[i3 + 0] = Math.random() // R
+    colors[i3 + 1] = Math.random() // G
+    colors[i3 + 2] = Math.random() // B
+}
+
+starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+starGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+
+const starMaterial = new THREE.PointsMaterial({
+    vertexColors: true,
+    size: 0.15,
+    sizeAttenuation: true
+})
+
+const stars = new THREE.Points(starGeometry, starMaterial)
+scene.add(stars)
+
 
 /**
  * Sizes
@@ -98,20 +122,26 @@ renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
 
+/**
+ * Model Loader
+ */
 let mixer = null
 const gltfLoader = new GLTFLoader();
+
 gltfLoader.load(
-    '/models/Fox/glTF/Fox.gltf',
+    '/models/patmog/patmog.gltf',
     function (gltf)  {
-        gltf.scene.scale.set(0.025, 0.025, 0.025);
-       scene.add(gltf.scene);
+        gltf.scene.scale.set(5, 5, 5);
+        scene.add(gltf.scene);
 
-       // Animation
-       mixer = new THREE.AnimationMixer(gltf.scene);
-       const action = mixer.clipAction(gltf.animations[1]);
-       action.play();
-    
-
+        // Animation
+        mixer = new THREE.AnimationMixer(gltf.scene);
+        
+        const clip = gltf.animations[1] ? gltf.animations[1] : gltf.animations[0];
+        if(clip){
+            const action = mixer.clipAction(clip);
+            action.play();
+        }
     }
 );
 
@@ -129,10 +159,9 @@ const tick = () =>
     previousTime = elapsedTime
 
     // Model animation
-   if(mixer) {
-       mixer.update(deltaTime)
-   }
-
+    if(mixer) {
+        mixer.update(deltaTime)
+    }
 
     // Update controls
     controls.update()
